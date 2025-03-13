@@ -6,6 +6,7 @@ import (
 
 	"github.com/Adejare77/blogPlatform/internals/handlers"
 	"github.com/Adejare77/blogPlatform/internals/models"
+	"github.com/Adejare77/blogPlatform/internals/schemas"
 	"github.com/gin-gonic/gin"
 )
 
@@ -30,12 +31,13 @@ func LikePostOrComment(ctx *gin.Context) {
 	postID := ctx.Param("id")
 	commentID := ctx.Param("comment_id")
 
-	user, err := models.GetUserByPostID(postID)
+	authorID, err := models.GetAuthorIDByPostID(postID)
 	if err != nil {
 		handlers.InternalServerError(ctx, err.Error())
 		return
 	}
-	if user.ID == userID {
+
+	if authorID == userID {
 		handlers.BadRequest(ctx, "Author Cannot like their own post", err)
 		return
 	}
@@ -48,7 +50,12 @@ func LikePostOrComment(ctx *gin.Context) {
 		postIDOrCommentID = commentID
 	}
 
-	err = models.LikePostOrComment(userID, postIDOrCommentID, postOrComment)
+	err = models.LikePostOrComment(schemas.Like{
+		AuthorID:     authorID,
+		UserID:       userID,
+		LikeableID:   postIDOrCommentID,
+		LikeableType: postOrComment,
+	})
 	if err != nil {
 		handlers.InternalServerError(ctx, err.Error())
 		return
@@ -70,13 +77,17 @@ func UnlikedPostOrComment(ctx *gin.Context) {
 		postIDOrCommentID = commentID
 	}
 
-	err := models.UnlikePostOrComment(userID, postIDOrCommentID, postOrComment)
+	err := models.UnlikePostOrComment(schemas.Like{
+		UserID:       userID,
+		LikeableID:   postIDOrCommentID,
+		LikeableType: postOrComment,
+	})
 	if err == nil {
 		ctx.JSON(http.StatusOK, "Post Successfully Unliked")
 	} else if strings.Contains(err.Error(), "not found") {
 		ctx.JSON(http.StatusNotFound, err.Error())
 	} else {
 		handlers.InternalServerError(ctx, err)
-	}
+	}Upda
 
 }
