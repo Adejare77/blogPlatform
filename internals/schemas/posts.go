@@ -9,7 +9,7 @@ import (
 
 type Post struct {
 	ID        string `gorm:"primaryKey"`
-	UserID    uint   `gorm:"not null;index"`
+	AuthorID  uint   `gorm:"not null;index;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Title     string `binding:"required"`
 	Content   string `gorm:"type:text" binding:"required"`
 	Status    string `gorm:"default:'draft'" binding:"omitempty,oneof=draft published"`
@@ -17,7 +17,7 @@ type Post struct {
 	UpdatedAt time.Time
 	Likes     []Like    `gorm:"polymorphic:Likeable;polymorphicValue:Post;constraint:OnDelete:CASCADE"`
 	Comments  []Comment `gorm:"foreignKey:PostID;constraint:OnDelete:CASCADE"`
-	User      User      `gorm:"foreignKey:UserID;constrait:OnDelete:CASCADE" binding:"-"` // Optional: for eager loading of the associated User (belongs-to relationship)
+	User      User      `gorm:"foreignKey:AuthorID;references:ID;constraint:OnDelete:CASCADE" binding:"-"`
 }
 
 func (post *Post) BeforeCreate(tx *gorm.DB) (err error) {
