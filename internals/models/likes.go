@@ -7,48 +7,32 @@ import (
 	"github.com/Adejare77/blogPlatform/internals/schemas"
 )
 
-func GetLikedPosts(userID uint) ([]schemas.Post, error) {
-	var likeableIDs []uint
+func GetLikedPosts(userID uint) ([]map[string]string, error) {
+	var result []map[string]string
 
 	if err := config.DB.Model(&schemas.Like{}).
-		Where("user_id = ? AND likeable_type = ?", "Post").
-		Pluck("likeable_id", &likeableIDs).Error; err != nil {
+		Select("users.name, posts.title, LEFT(posts.content, 200) AS content").
+		Joins("LEFT JOIN posts ON posts.id = likes.likeable_id").
+		Joins("LEFT JOIN users ON likes.author_id = users.id").
+		Find(&result).Error; err != nil {
 		return nil, err
 	}
 
-	var user schemas.User
-
-	if err := config.DB.
-		Preload("Posts", "id IN ?", likeableIDs).
-		First(&user).Error; err != nil {
-		return nil, err
-	}
-
-	return user.Posts, nil
+	return result, nil
 }
 
-func LikePostOrComment(userID uint, postID string, parent string) error {
-	cursor := config.DB.
-		Where("user_id = ? AND likeable_id = ?", userID, postID).
-		FirstOrCreate(&schemas.Like{
-			UserID:       userID,
-			LikeableID:   postID,
-			LikeableType: parent,
-		})
-
-	return cursor.Error
+func LikePostOrComment(data schemas.Like) error {
+	return config.DB.FirstOrCreate(&data).Error
 }
 
-func UnlikePostOrComment(userID uint, postID string, parent string) error {
-	result := config.DB.
-		Where("user_id = ? AND likeable_id = ? AND likeable_type = ?", userID, postID, parent).
-		Delete(&schemas.Like{})
+func UnlikePostOrComment(like schemas.Like) error {
+	cursor := config.DB.Delete(&like)
 
-	if result.Error != nil {
-		return result.Error
+	if cursor.Error != nil {
+		return cursor.Error
 	}
 
-	if result.RowsAffected == 0 {
+	if cursor.RowsAffected == 0 {
 		return errors.New("like not found")
 	}
 
