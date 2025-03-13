@@ -2,7 +2,6 @@ package models
 
 import (
 	"errors"
-	"net/http"
 
 	"github.com/Adejare77/blogPlatform/config"
 	"github.com/Adejare77/blogPlatform/internals/schemas"
@@ -10,79 +9,87 @@ import (
 )
 
 func CreatePost(post *schemas.Post) error {
-	result := config.DB.Create(post)
-
-	return result.Error
+	return config.DB.Create(&post).Error
 }
 
-func GetAllPosts() ([]map[string]interface{}, error) {
-	var allPosts []map[string]interface{}
+func GetAllPosts() ([]map[string]any, error) {
+	var allPosts []map[string]any
 
 	if err := config.DB.Model(&schemas.Post{}).
-		Select("posts.id, posts.title, posts.content, COUNT(likes.id) AS count").
+		Select("posts.id, users.name, posts.title, CONCAT(LEFT(posts.content, 150), ...) AS content, COUNT(likes.id) AS likes").
 		Joins("LEFT JOIN likes ON posts.id = likes.likeable_id AND likes.likeable_type = ?", "Post").
+		Joins("LEFT JOIN users ON users.id = posts.author_id").
 		Group("posts.id").
-		Find(&allPosts).Error; err != nil {
+		Scan(&allPosts).Error; err != nil {
 		return nil, err
 	}
 
 	return allPosts, nil
 }
 
-func GetPosts(userID uint) ([]map[string]interface{}, error) {
-	var allPosts []map[string]interface{}
+func GetPosts(userID uint) ([]map[string]any, error) {
+	var allPosts []map[string]any
 	if err := config.DB.Model(&schemas.Post{}).
-		Select("posts.id, posts.title, posts.content, COUNT(likes.id) AS count").
+		Where("posts.author_id = ?", userID).
+		Select("posts.id, users.name, posts.title, CONCAT(LEFT(posts.content, 150), ...) AS content, COUNT(likes.id) AS likes").
 		Joins("LEFT JOIN likes ON posts.id = likes.likeable_id AND likes.likeable_type = ?", "Post").
+		Joins("LEFT JOIN users ON users.id = posts.author_id").
 		Group("posts.id").
-		Find(&allPosts, "posts.user_id = ?", userID).Error; err != nil {
+		Scan(&allPosts).Error; err != nil {
 		return nil, err
 	}
 
 	return allPosts, nil
 }
 
-func GetPost(postID string) (map[string]interface{}, error) {
-	var post map[string]interface{}
-	var count int64
+func GetPostByID(postID string) (map[string]any, error) {
+	var post map[string]any
 
-	if err := config.DB.
-		Preload("Likes", "likeable_id = ?", postID, func(db *gorm.DB) *gorm.DB {
-			return db.Count(&count)
-		}).
-		Where("id = ?", postID).
-		Select("id, title, content").
-		First(&post).Error; err != nil {
+	if err := config.DB.Model(&schemas.Post{}).
+		Where("posts.id = ?", postID).
+		Select("posts.id, posts.author_id, title, content, COUNT(*) AS likes").
+		Joins("LEFT JOIN likes ON likes.likeable_id = posts.id").
+		Scan(&post).Error; err != nil {
 		return nil, err
 	}
 
 	return post, nil
 }
 
-func UpdatePost(userID uint, postID string, data map[string]interface{}) error {
+func GetAuthorIDByPostID(postID string) (uint, error) {
+	var authorID uint
+	if err := config.DB.
+		Where("id = ?", postID).
+		Select("author_id").Scan(&authorID).Error; err != nil {
+		return 0, err
+	}
+	return authorID, nil
+}
+
+func UpdatePost(data map[string]any) error {
 	delete(data, "id") // deletes possibility of updating "postID"
 	if err := config.DB.
 		Model(&schemas.Post{}).
-		Where("user_id = ? AND id = ?", userID, postID).Updates(data).Error; err != nil {
+		Where("author_id = ? AND id = ?", data["userID"], data["postID"]).
+		Updates(data).Error; err != nil {
 		return err
 	}
+
 	return nil
 }
 
-func DeletePost(userID uint, postID string) (int, error) {
+func DeletePost(userID uint, postID string) error {
 	var post schemas.Post
-	if err := config.DB.First(&post, "id = ?", postID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return http.StatusNotFound, err
-		}
-		return http.StatusInternalServerError, err
-	}
-	if post.UserID != userID {
-		return http.StatusForbidden, errors.New("only Authorized Personnel is Allowed")
-	}
+	cursor := config.DB.First(&post, "id = ?", postID)
 
-	if err := config.DB.Delete(&post).Error; err != nil {
-		return http.StatusInternalServerError, err
+	if errors.Is(cursor.Error, gorm.ErrRecordNotFound) {
+		return errors.New("record Not Found")
+	} else if post.AuthorID != userID {
+		return errors.New("only Authorized Personnel is Allowed")
+	} else {
+		if err := config.DB.Delete(&post).Error; err != nil {
+			return err
+		}
 	}
-	return http.StatusOK, nil
+	return nil
 }
