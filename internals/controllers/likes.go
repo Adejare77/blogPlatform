@@ -88,6 +88,5 @@ func UnlikedPostOrComment(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, err.Error())
 	} else {
 		handlers.InternalServerError(ctx, err)
-	}Upda
-
+	}
 }
