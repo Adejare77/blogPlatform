@@ -56,8 +56,8 @@ func Login(ctx *gin.Context) {
 		return
 	}
 
-	userInfo, ok := models.GetUserInfo(user.Email)
-	if !ok {
+	userInfo, err := models.GetUserInfo(user.Email)
+	if err != nil {
 		handlers.Unauthorized(ctx, "Incorrect email or password", userInfo)
 		return
 	}
