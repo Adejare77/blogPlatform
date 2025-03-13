@@ -10,7 +10,7 @@ type User struct {
 	Name     string    `gorm:"not null" binding:"required"`
 	Email    string    `gorm:"unique;not null" binding:"required,email"`
 	Password string    `gorm:"not null" binding:"required"`
-	Posts    []Post    `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
+	Posts    []Post    `gorm:"foreignKey:AuthorID;constraint:OnDelete:CASCADE"`
 	Likes    []Like    `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
 	Comments []Comment `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
 }
