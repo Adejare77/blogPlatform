@@ -12,7 +12,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		currentUser := session.Get("currentUser")
 		if currentUser == nil {
-			handlers.Unauthorized(ctx, "Unauthorized", "Access Unauthorized routes")
+			handlers.Unauthorized(ctx, "Login Required", "Access Unauthorized routes")
 			ctx.Abort()
 			return
 		}
