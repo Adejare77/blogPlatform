@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -73,16 +72,13 @@ func Login(ctx *gin.Context) {
 
 func Logout(ctx *gin.Context) {
 	userID, exists := ctx.Get("currentUser")
-	fmt.Println("**********************")
-	fmt.Println(userID)
-	fmt.Println("**********************")
 
 	if !exists {
 		handlers.Unauthorized(ctx, "Unauthorized", "User Session Not Found")
 		return
 	}
 
-	config.DeleteSession(ctx, userID.(string))
+	config.DeleteSession(ctx, userID.(uint))
 
 	ctx.Redirect(http.StatusSeeOther, "index")
 }
