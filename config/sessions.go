@@ -56,7 +56,7 @@ func CreateSession(ctx *gin.Context, userID uint) {
 	}
 }
 
-func DeleteSession(ctx *gin.Context, userID string) {
+func DeleteSession(ctx *gin.Context, userID uint) {
 	session := sessions.Default(ctx)
 
 	session.Delete("currentUser")
