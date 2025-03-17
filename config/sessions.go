@@ -70,7 +70,6 @@ func DeleteSession(ctx *gin.Context, userID uint) {
 
 }
 func loadSessionConfig() *sessionConfig {
-	// size, _ := strconv.Atoi(os.Getenv("REDIS_SIZE"))
 	size := os.Getenv("REDIS_SIZE")
 	addr := os.Getenv("REDIS_ADDRESS")
 	pwd := os.Getenv("REDIS_PASSWORD")
