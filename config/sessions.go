@@ -36,6 +36,7 @@ func ConnectSession() error {
 	}
 
 	client.Options(sessions.Options{
+		Path:     "/",
 		MaxAge:   cfg.MaxAge,
 		HttpOnly: true,  // Prevent client-side JS access
 		Secure:   false, // Set to true if using HTTPS
@@ -59,16 +60,18 @@ func CreateSession(ctx *gin.Context, userID uint) {
 func DeleteSession(ctx *gin.Context, userID uint) {
 	session := sessions.Default(ctx)
 
-	session.Delete("currentUser")
+	// session.Delete("currentUser")
+	session.Clear()
 	session.Options(sessions.Options{
+		Path:   "/",
 		MaxAge: -1,
 	})
 
 	if err := session.Save(); err != nil {
 		handlers.InternalServerError(ctx, "Error Saving Deleted User session")
 	}
-
 }
+
 func loadSessionConfig() *sessionConfig {
 	size := os.Getenv("REDIS_SIZE")
 	addr := os.Getenv("REDIS_ADDRESS")
