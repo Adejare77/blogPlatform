@@ -11,7 +11,6 @@ func init() {
 	if err := godotenv.Overload(); err != nil {
 		log.Println("Warning: .env file is missing. Using environment variables")
 	}
-	Connect()
 }
 
 func Initialize() error {
