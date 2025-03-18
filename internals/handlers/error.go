@@ -58,3 +58,13 @@ func Unauthorized(ctx *gin.Context, msg string, details interface{}) {
 		details,
 	)
 }
+
+func Forbidden(ctx *gin.Context, msg string, details any) {
+	handleError(
+		ctx,
+		http.StatusForbidden,
+		"FORBIDDEN",
+		msg,
+		details,
+	)
+}
