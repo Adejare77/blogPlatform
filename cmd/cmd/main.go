@@ -17,7 +17,7 @@ func main() {
 	}
 
 	app := gin.Default()
-	app.Use(sessions.Sessions("user", config.SessionStore))
+	app.Use(sessions.Sessions("blogPost", config.SessionStore))
 
 	userRoutes := app.Group("/")
 	postRoutes := app.Group("/", middlesware.AuthMiddleware())
