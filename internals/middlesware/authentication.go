@@ -28,6 +28,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		ctx.Set("currentUser", userID)
 
 		session.Options(sessions.Options{
+			Path:     "/", // Always set path to avoid creating multiple cookies
 			MaxAge:   600,
 			HttpOnly: true,
 			Secure:   false,
