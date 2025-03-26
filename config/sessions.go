@@ -35,12 +35,14 @@ func ConnectSession() error {
 		return fmt.Errorf("(Session Initialization Error) %v", err)
 	}
 
+	// global session options
 	client.Options(sessions.Options{
 		Path:     "/",
 		MaxAge:   cfg.MaxAge,
 		HttpOnly: true,  // Prevent client-side JS access
 		Secure:   false, // Set to true if using HTTPS
 	})
+
 	SessionStore = client
 
 	return nil
@@ -60,7 +62,6 @@ func CreateSession(ctx *gin.Context, userID uint) {
 func DeleteSession(ctx *gin.Context, userID uint) {
 	session := sessions.Default(ctx)
 
-	// session.Delete("currentUser")
 	session.Clear()
 	session.Options(sessions.Options{
 		Path:   "/",
