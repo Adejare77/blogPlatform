@@ -8,7 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// Calculate total published posts
 func TotalPosts() (int64, error) {
 	var count int64
 	if err := config.DB.Model(&schemas.Post{}).
@@ -23,7 +22,6 @@ func CreatePost(post *schemas.Post) error {
 	return config.DB.Create(&post).Error
 }
 
-// Everybody
 func FindAllPosts() ([]map[string]any, error) {
 	var allPosts []map[string]any
 
@@ -48,7 +46,6 @@ func FindAllPosts() ([]map[string]any, error) {
 	return allPosts, nil
 }
 
-// Authorized Users
 func FindUserPosts(userID uint, status string) ([]map[string]any, error) {
 	var allPosts []map[string]any
 
@@ -78,7 +75,7 @@ func FindByPostID(userID uint, postID string, status string) (map[string]any, er
 	var post map[string]any
 	var query *gorm.DB
 
-	if status == "published" { // Everybody
+	if status == "published" {
 		query = config.DB.Model(&schemas.Post{}).
 			Where("posts.id = ? AND status = ?", postID, status)
 	} else { // Authorized Users only
