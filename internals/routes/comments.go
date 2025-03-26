@@ -6,8 +6,8 @@ import (
 )
 
 var CommentRoutes = func(r *gin.RouterGroup) {
-	r.POST("/posts/:id/comments", controllers.CreateComment)
-	r.GET("/posts/:id/comments", controllers.GetComments)
-	r.POST("/posts/:id/comments/:comment_id/reply", controllers.CreateComment)
-	r.PUT("/posts/:id/comments/:comment_id")
+	r.GET("/posts/:post_id/comments", controllers.GetPostComments)
+	r.POST("/posts/:post_id/comments", controllers.CreateComment)
+	r.POST("/posts/:post_id/comments/:parent_id/replies", controllers.CreateComment)
+	r.PATCH("/posts/:post_id/comments/:comment_id", controllers.UpdateComment)
 }
