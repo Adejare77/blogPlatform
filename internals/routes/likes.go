@@ -6,9 +6,12 @@ import (
 )
 
 var LikesRoutes = func(r *gin.RouterGroup) {
-	r.GET("/posts/like", controllers.LikedPosts)
-	r.POST("/posts/:id/like", controllers.LikePostOrComment)
-	r.DELETE("posts/:id/unlike", controllers.UnlikedPostOrComment)
-	r.POST("/posts/:id/comments/:comment_id/like", controllers.LikePostOrComment)
-	r.DELETE("posts/:id/comments/:comment_id/unlike", controllers.UnlikedPostOrComment)
+	r.GET("/users/:user_id/likes", controllers.GetUserLikes)
+
+	r.POST("/posts/:post_id/likes", controllers.CreateLike)
+	r.DELETE("/posts/:post_id/likes", controllers.DeleteLike)
+
+	r.POST("/comments/:comment_id/likes", controllers.CreateLike)
+	r.DELETE("/comments/:comment_id/likes", controllers.DeleteLike)
+
 }
