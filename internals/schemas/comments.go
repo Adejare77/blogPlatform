@@ -5,13 +5,23 @@ import (
 )
 
 type Comment struct {
-	ID        string `gorm:"primaryKey"`
-	PostID    string `gorm:"type:uuid;not null"`
-	UserID    uint   `gorm:"not null"`
-	Content   string `gorm:"type:text" binding:"required"`
-	CreatedAt time.Time
+	ID        string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	PostID    string    `gorm:"type:uuid;not null"`
+	AuthorID  uint      `gorm:"not null"`
+	Content   string    `gorm:"type:text"`
 	ParentID  *string   `gorm:"type:uuid;index;default:null"`
 	Likes     []Like    `gorm:"type:uuid;polymorphic:Likeable;polymorphicValue:Comment;constraint:OnDelete:CASCADE"`
-	User      User      `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
 	Replies   []Comment `gorm:"foreignKey:ParentID"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type CommentUriParam struct {
+	PostID    string  `uri:"post_id" binding:"required,uuid"`
+	CommentID string  `uri:"comment_id" binding:"required,uuid"`
+	ParentID  *string `uri:"parent_id" binding:"omitempty,uuid"`
+}
+
+type CommentBody struct {
+	Content string `json:"content" binding:"required"`
 }
