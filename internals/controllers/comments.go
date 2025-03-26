@@ -11,39 +11,59 @@ import (
 )
 
 func CreateComment(ctx *gin.Context) {
-	userID := ctx.MustGet("currentUser").(uint)
-	postID := ctx.Param("id")
-	parentID := ctx.Param("comment_id")
+	currentUser := ctx.MustGet("currentUser").(uint)
+	var post schemas.PostURIParams
+	var content schemas.CommentBody
 
-	var comment schemas.Comment
-
-	if err := ctx.BindJSON(&comment); err != nil {
-		handlers.BadRequest(ctx, err.Error(), err)
+	// Bind URI parameters (post_id and parent_id if present)
+	if err := ctx.ShouldBindUri(&post); err != nil {
+		handlers.Validator(ctx, err)
 		return
 	}
 
-	// Add PostID and UserID
-	comment.PostID = postID
-	comment.UserID = userID
-
-	if parentID != "" { // its a reply to a comment
-		comment.ParentID = &parentID
+	// Bind JSON data (content)
+	if err := ctx.ShouldBindJSON(&content); err != nil {
+		handlers.Validator(ctx, err)
+		return
 	}
 
-	if err := models.PostComment(comment); err != nil {
+	comment := schemas.Comment{
+		AuthorID: currentUser,
+		PostID:   post.PostID,
+		Content:  content.Content,
+	}
+
+	if err := models.CreateComment(comment); err != nil {
 		handlers.InternalServerError(ctx, err.Error())
 		return
 	}
 
-	ctx.JSON(http.StatusOK, "Comment Added Successfully")
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  http.StatusOK,
+		"message": "comment added",
+	})
 }
 
-func GetComments(ctx *gin.Context) {
-	postID := ctx.Param("id")
+func GetPostComments(ctx *gin.Context) {
+	type Post struct {
+		PostID string `uri:"post_id" binding:"required,uuid"`
+	}
+	var comment Post
 
-	allComments, err := models.GetCommentsByPostID(postID)
+	if err := ctx.ShouldBindUri(&comment); err != nil {
+		handlers.Validator(ctx, err)
+		return
+	}
+
+	allComments, err := models.FindCommentsByPostID(comment.PostID)
 	if err != nil {
 		handlers.InternalServerError(ctx, err.Error())
+		return
+	}
+
+	if len(allComments) == 0 {
+		ctx.JSON(http.StatusOK, []map[string]any{})
+		return
 	}
 
 	ctx.JSON(http.StatusOK, allComments)
@@ -51,48 +71,56 @@ func GetComments(ctx *gin.Context) {
 
 func UpdateComment(ctx *gin.Context) {
 	userID := ctx.MustGet("currentUser").(uint)
-	commentID := ctx.Param("comment_id")
+	var commentParam schemas.CommentUriParam
+	var commentBody schemas.CommentBody
 
-	var content map[string]string
-	if err := ctx.ShouldBind(&content); err != nil {
-		handlers.BadRequest(ctx, err.Error(), err)
+	if err := ctx.ShouldBindUri(&commentParam); err != nil {
+		handlers.Validator(ctx, err)
 		return
 	}
 
-	if content["content"] == "" {
-		handlers.BadRequest(ctx, "`content` field missing", "`Content` field is not Provided")
+	if err := ctx.ShouldBindJSON(&commentBody); err != nil {
+		handlers.Validator(ctx, err)
 		return
 	}
-	err := models.UpdateComment(userID, commentID, content)
-	if err == nil {
-		ctx.Redirect(http.StatusSeeOther, commentID)
-	} else if strings.Contains(err.Error(), "not found") {
-		ctx.JSON(http.StatusNotFound, "Record not found")
-	} else {
+
+	err := models.UpdateComment(userID, commentParam, commentBody)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			handlers.BadRequest(ctx, "record not found", err)
+			return
+		}
 		handlers.InternalServerError(ctx, err)
+		return
 	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  http.StatusOK,
+		"message": "updated successfully",
+	})
 }
 
 func DeleteComment(ctx *gin.Context) {
 	userID := ctx.MustGet("currentUser").(uint)
-	commentID := ctx.Param("comment_id")
+	var comment schemas.CommentUriParam
 
-	err := models.DeleteComment(userID, commentID)
-	if err == nil {
-		ctx.JSON(http.StatusOK, "Comment Deleted Successfully")
-	} else if strings.Contains(err.Error(), "not found") {
-		ctx.JSON(http.StatusNotFound, "Comment Not Found")
-	} else {
-		handlers.InternalServerError(ctx, err)
+	if err := ctx.ShouldBindUri(&comment); err != nil {
+		handlers.Validator(ctx, err)
+		return
 	}
+
+	err := models.DeleteComment(userID, comment)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			handlers.BadRequest(ctx, "Record not Found", err)
+			return
+		}
+		handlers.InternalServerError(ctx, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  http.StatusOK,
+		"message": "comment deleted",
+	})
 }
-
-// func ReplyAComment(ctx *gin.Context) {
-// 	userID := ctx.MustGet("currentUser").(uint)
-// 	postID := ctx.Param("id")
-// 	commentID := ctx.Param("comment_id")
-
-// 	var reply schemas.Comment
-// 	if err :=
-
-// }
