@@ -12,7 +12,7 @@ type User struct {
 	Password string    `gorm:"not null" binding:"required"`
 	Posts    []Post    `gorm:"foreignKey:AuthorID;constraint:OnDelete:CASCADE"`
 	Likes    []Like    `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
-	Comments []Comment `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
+	Comments []Comment `gorm:"foreignKey:AuthorID;constraint:OnDelete:CASCADE"`
 }
 
 func (newUser *User) BeforeCreate(tx *gorm.DB) (err error) {
