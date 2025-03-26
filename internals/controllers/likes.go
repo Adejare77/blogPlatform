@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -10,83 +11,99 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func LikedPosts(ctx *gin.Context) {
-	userID := ctx.MustGet("currentUser").(uint)
+func CreateLike(ctx *gin.Context) {
+	currentUser := ctx.MustGet("currentUser").(uint)
+	var post schemas.PostURIParams
+	var targetType schemas.LikedQueryParams
 
-	posts, err := models.GetLikedPosts(userID)
+	if err := ctx.ShouldBindUri(&post); err != nil {
+		handlers.Validator(ctx, err)
+		return
+	}
+
+	if err := ctx.ShouldBindQuery(&targetType); err != nil {
+		handlers.Validator(ctx, err)
+		return
+	}
+
+	var authorID *uint
+	var err error
+
+	if targetType.Type == "post" {
+		authorID, err = models.FindPostAuthorID(post.PostID)
+	} else {
+		authorID, err = models.FindCommentAuthorID(post.PostID)
+	}
+
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			handlers.BadRequest(ctx, "Record not Found", err)
+			return
+		}
+		handlers.InternalServerError(ctx, err)
+		return
+	}
+
+	if *authorID == currentUser {
+		handlers.BadRequest(ctx,
+			fmt.Sprintf("you can't like your %s", targetType.Type),
+			fmt.Sprintf("author tried to like their %s", targetType.Type),
+		)
+		return
+	}
+
+	if err := models.CreateLike(schemas.Like{
+		UserID:       currentUser,
+		LikeableID:   post.PostID,
+		LikeableType: targetType.Type,
+	}); err != nil {
+		handlers.InternalServerError(ctx, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, "liked successfully")
+}
+
+func GetUserLikes(ctx *gin.Context) {
+	userID := ctx.MustGet("currentUser").(uint)
+	var targetType schemas.LikedQueryParams
+
+	if err := ctx.ShouldBindQuery(&targetType); err != nil {
+		handlers.Validator(ctx, err)
+		return
+	}
+
+	posts, err := models.FindLikesByUser(userID, targetType.Type)
 	if err != nil {
 		handlers.InternalServerError(ctx, err.Error())
 		return
 	}
 	if len(posts) == 0 {
-		ctx.JSON(http.StatusNotFound, "Record Not Found")
+		ctx.JSON(http.StatusOK, []map[string]any{})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, posts)
 }
 
-func LikePostOrComment(ctx *gin.Context) {
+func DeleteLike(ctx *gin.Context) {
 	userID := ctx.MustGet("currentUser").(uint)
-	postID := ctx.Param("id")
-	commentID := ctx.Param("comment_id")
+	var post schemas.PostURIParams
 
-	authorID, err := models.GetAuthorIDByPostID(postID)
+	if err := ctx.ShouldBindUri(&post); err != nil {
+		handlers.Validator(ctx, err)
+		return
+	}
+
+	err := models.DeleteLike(userID, post.PostID)
 	if err != nil {
-		handlers.InternalServerError(ctx, err.Error())
-		return
-	}
-
-	if authorID == userID {
-		handlers.BadRequest(ctx, "Author Cannot like their own post", err)
-		return
-	}
-
-	postOrComment := "Post"
-	postIDOrCommentID := postID
-
-	if commentID != "" {
-		postOrComment = "Comment"
-		postIDOrCommentID = commentID
-	}
-
-	err = models.LikePostOrComment(schemas.Like{
-		AuthorID:     authorID,
-		UserID:       userID,
-		LikeableID:   postIDOrCommentID,
-		LikeableType: postOrComment,
-	})
-	if err != nil {
-		handlers.InternalServerError(ctx, err.Error())
-		return
-	}
-
-	ctx.JSON(http.StatusOK, "Post successfully Liked")
-}
-
-func UnlikedPostOrComment(ctx *gin.Context) {
-	userID := ctx.MustGet("currentUser").(uint)
-	postID := ctx.Param("id")
-	commentID := ctx.Param("comment_id")
-
-	postOrComment := "Post"
-	postIDOrCommentID := postID
-
-	if commentID != "" {
-		postOrComment = "Comment"
-		postIDOrCommentID = commentID
-	}
-
-	err := models.UnlikePostOrComment(schemas.Like{
-		UserID:       userID,
-		LikeableID:   postIDOrCommentID,
-		LikeableType: postOrComment,
-	})
-	if err == nil {
-		ctx.JSON(http.StatusOK, "Post Successfully Unliked")
-	} else if strings.Contains(err.Error(), "not found") {
-		ctx.JSON(http.StatusNotFound, err.Error())
-	} else {
 		handlers.InternalServerError(ctx, err)
+		return
 	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  http.StatusOK,
+		"message": "deleted successfully",
+	})
+
 }
