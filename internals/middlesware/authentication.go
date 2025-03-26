@@ -9,10 +9,10 @@ import (
 func AuthMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		session := sessions.Default(ctx)
-
 		currentUser := session.Get("currentUser")
+
 		if currentUser == nil {
-			handlers.Unauthorized(ctx, "Login Required", "Access Unauthorized routes")
+			handlers.Unauthorized(ctx, "login required", "Access Unauthorized routes")
 			ctx.Abort()
 			return
 		}
@@ -24,19 +24,14 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Re-save to ensure roll-over to prevent TTL while in use
-		ctx.Set("currentUser", userID)
-
-		session.Options(sessions.Options{
-			Path:     "/", // Always set path to avoid creating multiple cookies
-			MaxAge:   600,
-			HttpOnly: true,
-			Secure:   false,
-		})
+		ctx.Set("currentUser", userID)     // set key for next function
+		session.Set("currentUser", userID) // roll-over key
 
 		if err := session.Save(); err != nil {
-			handlers.InternalServerError(ctx, "Error saving a session")
+			handlers.InternalServerError(ctx, "error saving a session")
 			return
 		}
+
+		ctx.Next()
 	}
 }
