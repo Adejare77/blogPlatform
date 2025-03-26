@@ -8,18 +8,39 @@ import (
 	"gorm.io/gorm"
 )
 
+// Calculate total published posts
+func TotalPosts() (int64, error) {
+	var count int64
+	if err := config.DB.Model(&schemas.Post{}).
+		Where("status = ?", "published").
+		Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func CreatePost(post *schemas.Post) error {
 	return config.DB.Create(&post).Error
 }
 
-func GetAllPosts() ([]map[string]any, error) {
+// Everybody
+func FindAllPosts() ([]map[string]any, error) {
 	var allPosts []map[string]any
 
 	if err := config.DB.Model(&schemas.Post{}).
-		Select("posts.id, users.name, posts.title, CONCAT(LEFT(posts.content, 150), ...) AS content, COUNT(likes.id) AS likes").
+		Where("posts.status = ?", "published").
+		Select(`
+		posts.id AS post_id, 
+		users.name AS author_name, 
+		posts.title AS post_title, 
+		CONCAT(LEFT(posts.content, 150), '...') AS content_excerpt, 
+		COUNT(likes.likeable_id) AS likes,
+		COUNT(comments.id) AS comments_counts
+		`).
 		Joins("LEFT JOIN likes ON posts.id = likes.likeable_id AND likes.likeable_type = ?", "Post").
-		Joins("LEFT JOIN users ON users.id = posts.author_id").
-		Group("posts.id").
+		Joins("LEFT JOIN comments ON comments.post_id = posts.id").
+		Joins("INNER JOIN users ON users.id = posts.author_id").
+		Group("posts.id, users.name").
 		Scan(&allPosts).Error; err != nil {
 		return nil, err
 	}
@@ -27,14 +48,25 @@ func GetAllPosts() ([]map[string]any, error) {
 	return allPosts, nil
 }
 
-func GetPosts(userID uint) ([]map[string]any, error) {
+// Authorized Users
+func FindUserPosts(userID uint, status string) ([]map[string]any, error) {
 	var allPosts []map[string]any
+
+	// Check for forbidden access later
 	if err := config.DB.Model(&schemas.Post{}).
-		Where("posts.author_id = ?", userID).
-		Select("posts.id, users.name, posts.title, CONCAT(LEFT(posts.content, 150), ...) AS content, COUNT(likes.id) AS likes").
+		Where("posts.author_id = ? AND status = ?", userID, status).
+		Select(`
+		posts.id AS post_id, 
+		users.name AS author_name, 
+		posts.title AS post_title, 
+		CONCAT(LEFT(posts.content, 150), '...') AS content_excerpt, 
+		COUNT(likes.likeable_id) AS likes,
+		COUNT(comments.id) AS comments_counts
+		`).
 		Joins("LEFT JOIN likes ON posts.id = likes.likeable_id AND likes.likeable_type = ?", "Post").
-		Joins("LEFT JOIN users ON users.id = posts.author_id").
-		Group("posts.id").
+		Joins("LEFT JOIN comments ON comments.post_id = posts.id").
+		Joins("INNER JOIN users ON users.id = posts.author_id").
+		Group("posts.id, users.name").
 		Scan(&allPosts).Error; err != nil {
 		return nil, err
 	}
@@ -42,13 +74,31 @@ func GetPosts(userID uint) ([]map[string]any, error) {
 	return allPosts, nil
 }
 
-func GetPostByID(postID string) (map[string]any, error) {
+func FindByPostID(userID uint, postID string, status string) (map[string]any, error) {
 	var post map[string]any
+	var query *gorm.DB
 
-	if err := config.DB.Model(&schemas.Post{}).
-		Where("posts.id = ?", postID).
-		Select("posts.id, posts.author_id, title, content, COUNT(*) AS likes").
+	if status == "published" { // Everybody
+		query = config.DB.Model(&schemas.Post{}).
+			Where("posts.id = ? AND status = ?", postID, status)
+	} else { // Authorized Users only
+		query = config.DB.Model(&schemas.Post{}).
+			Where("posts.id = ? AND author_id = ? AND status = ?", postID, userID, status)
+	}
+
+	if err := query.
+		Select(`
+		posts.id AS post_id, 
+		users.name AS author_name,
+		title AS post_title,
+		content, 
+		COUNT(likes.likeable_id) AS likes,
+		COUNT(comments.id) AS comments_counts
+		`).
 		Joins("LEFT JOIN likes ON likes.likeable_id = posts.id").
+		Joins("LEFT JOIN comments ON comments.post_id = posts.id").
+		Joins("INNER JOIN users ON users.id = posts.author_id").
+		Group("posts.id, users.name").
 		Scan(&post).Error; err != nil {
 		return nil, err
 	}
@@ -56,21 +106,36 @@ func GetPostByID(postID string) (map[string]any, error) {
 	return post, nil
 }
 
-func GetAuthorIDByPostID(postID string) (uint, error) {
-	var authorID uint
+func FindPostAuthorID(postID string) (*uint, error) {
+	var post schemas.Post
+
 	if err := config.DB.
-		Where("id = ?", postID).
-		Select("author_id").Scan(&authorID).Error; err != nil {
-		return 0, err
+		Where("id = ?", postID).First(&post).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("not found")
+		}
+		return nil, err
 	}
-	return authorID, nil
+
+	return &post.AuthorID, nil
 }
 
-func UpdatePost(data map[string]any) error {
-	delete(data, "id") // deletes possibility of updating "postID"
-	if err := config.DB.
-		Model(&schemas.Post{}).
-		Where("author_id = ? AND id = ?", data["userID"], data["postID"]).
+func UpdateUserPost(AuthorID uint, postID string, data map[string]any) error {
+	var post schemas.Post
+
+	if err := config.DB.First(&post, "id = ?", postID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("not found")
+		}
+		return err
+	}
+
+	if post.AuthorID != AuthorID {
+		return errors.New("forbidden")
+	}
+
+	if err := config.DB.Model(&schemas.Post{}).
+		Where("id = ?", postID).
 		Updates(data).Error; err != nil {
 		return err
 	}
@@ -78,18 +143,25 @@ func UpdatePost(data map[string]any) error {
 	return nil
 }
 
-func DeletePost(userID uint, postID string) error {
+func DeleteUserPost(userID uint, postID string) error {
 	var post schemas.Post
 	cursor := config.DB.First(&post, "id = ?", postID)
 
 	if errors.Is(cursor.Error, gorm.ErrRecordNotFound) {
-		return errors.New("record Not Found")
-	} else if post.AuthorID != userID {
-		return errors.New("only Authorized Personnel is Allowed")
-	} else {
-		if err := config.DB.Delete(&post).Error; err != nil {
-			return err
-		}
+		return errors.New("not found")
 	}
+
+	if cursor.Error != nil {
+		return cursor.Error
+	}
+
+	if post.AuthorID != userID {
+		return errors.New("forbidden")
+	}
+
+	if err := cursor.Delete(&post).Error; err != nil {
+		return err
+	}
+
 	return nil
 }
