@@ -6,12 +6,11 @@ import (
 )
 
 var PostRoutes = func(r *gin.RouterGroup) {
+	// Published Blogs
+	r.PATCH("/posts/:post_id", controllers.UpdatePost)
+	r.DELETE("/posts/:post_id", controllers.DeletePost)
 	r.POST("/posts", controllers.CreatePost)
-	r.GET("/posts", controllers.MyPosts)
-	r.GET("/posts/drafts", controllers.MyDrafts)
-	r.GET("/posts/drafts/:id", controllers.GetDraft)
-	r.PUT("/posts/:id", controllers.UpdatePost)
-	r.PUT("/posts/drafts/:id", controllers.UpdatePost)
-	r.DELETE("/posts/:id", controllers.DeletePost)
+	r.GET("/posts", controllers.GetUserPosts)
+
 	r.GET("/logout", controllers.Logout)
 }
