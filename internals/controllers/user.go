@@ -17,7 +17,7 @@ func Register(ctx *gin.Context) {
 	var user schemas.User
 
 	if err := ctx.ShouldBind(&user); err != nil {
-		utilities.Validator(ctx, err)
+		handlers.Validator(ctx, err)
 		return
 	}
 
@@ -37,9 +37,8 @@ func Register(ctx *gin.Context) {
 	}).Info("User registered successfully")
 
 	ctx.JSON(http.StatusCreated, gin.H{
-		"email":    user.Email,
-		"fullName": user.Name,
-		"status":   "Successfuly Registered",
+		"status":  http.StatusCreated,
+		"message": "user successfully created",
 	})
 }
 
@@ -51,7 +50,7 @@ func Login(ctx *gin.Context) {
 
 	var user login
 	if err := ctx.ShouldBind(&user); err != nil {
-		utilities.Validator(ctx, err)
+		handlers.Validator(ctx, err)
 		return
 	}
 
@@ -67,7 +66,10 @@ func Login(ctx *gin.Context) {
 
 	config.CreateSession(ctx, userInfo.ID)
 
-	ctx.JSON(http.StatusOK, "Successfully Login")
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  http.StatusOK,
+		"message": "login successful",
+	})
 }
 
 func Logout(ctx *gin.Context) {
@@ -80,5 +82,9 @@ func Logout(ctx *gin.Context) {
 
 	config.DeleteSession(ctx, userID.(uint))
 
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  http.StatusOK,
+		"message": "logged out",
+	})
 	ctx.Redirect(http.StatusSeeOther, "index")
 }
