@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -75,17 +76,13 @@ func Validator(ctx *gin.Context, err error) {
 	var errorDetails []string
 	for _, fieldError := range err.(validator.ValidationErrors) {
 		validationError := "validation failed: "
-		// source := errorSource(fieldError)
+		fieldName := strings.ToLower(fieldError.Field())
 		if fieldError.Tag() == "required" {
 			errorDetails = append(
 				errorDetails,
-				fmt.Sprintf(
-					validationError+"missing `%s` field on `%s`",
-					fieldError.Field(),
-					fieldError.Tag(),
-				))
+				fmt.Sprintf(validationError+"missing `%s` field on `%s`", fieldName, fieldError.Tag()))
 		} else if fieldError.Tag() == "oneof" {
-			errorDetails = append(errorDetails, validationError+"`status` parameter can only be `draft` or `published`")
+			errorDetails = append(errorDetails, validationError+fmt.Sprintf("`%s` parameter can only be %v", fieldName, fieldError.Param()))
 		} else if fieldError.Tag() == "uuid" {
 			errorDetails = append(errorDetails, validationError+"invalid post uuid")
 		} else if fieldError.Tag() == "status" {
