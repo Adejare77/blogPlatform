@@ -22,8 +22,9 @@ func CreatePost(post *schemas.Post) error {
 	return config.DB.Create(&post).Error
 }
 
-func FindAllPosts() ([]map[string]any, error) {
+func FindAllPosts(page int, limit int) ([]map[string]any, error) {
 	var allPosts []map[string]any
+	offset := (page - 1) * limit
 
 	if err := config.DB.Model(&schemas.Post{}).
 		Where("posts.status = ?", "published").
@@ -39,6 +40,7 @@ func FindAllPosts() ([]map[string]any, error) {
 		Joins("LEFT JOIN comments ON comments.post_id = posts.id").
 		Joins("INNER JOIN users ON users.id = posts.author_id").
 		Group("posts.id, users.name").
+		Offset(offset).Limit(limit).
 		Scan(&allPosts).Error; err != nil {
 		return nil, err
 	}
@@ -46,8 +48,9 @@ func FindAllPosts() ([]map[string]any, error) {
 	return allPosts, nil
 }
 
-func FindUserPosts(userID uint, status string) ([]map[string]any, error) {
+func FindUserPosts(userID uint, status string, page int, limit int) ([]map[string]any, error) {
 	var allPosts []map[string]any
+	offset := (page - 1) * limit
 
 	// Check for forbidden access later
 	if err := config.DB.Model(&schemas.Post{}).
@@ -64,6 +67,7 @@ func FindUserPosts(userID uint, status string) ([]map[string]any, error) {
 		Joins("LEFT JOIN comments ON comments.post_id = posts.id").
 		Joins("INNER JOIN users ON users.id = posts.author_id").
 		Group("posts.id, users.name").
+		Offset(offset).Limit(limit).
 		Scan(&allPosts).Error; err != nil {
 		return nil, err
 	}
@@ -88,7 +92,7 @@ func FindByPostID(userID uint, postID string, status string) (map[string]any, er
 		posts.id AS post_id, 
 		users.name AS author_name,
 		title AS post_title,
-		content, 
+		posts.content AS content, 
 		COUNT(likes.likeable_id) AS likes,
 		COUNT(comments.id) AS comments_counts
 		`).
