@@ -23,3 +23,8 @@ type PostURIParams struct {
 type StatusQueryParams struct {
 	Status string `form:"status" binding:"required,oneof=draft published"`
 }
+
+type FilterQueryParams struct {
+	Page  int `form:"page" binding:"numeric,min=1"`
+	Limit int `form:"limit" binding:"numeric,min=1"`
+}
