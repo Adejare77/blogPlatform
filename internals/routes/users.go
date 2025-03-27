@@ -6,8 +6,8 @@ import (
 )
 
 var UserRoutes = func(r *gin.RouterGroup) {
-	r.POST("/register", controllers.Register)
-	r.POST("/login", controllers.Login)
+	r.POST("/user/register", controllers.Register)
+	r.POST("/user/login", controllers.Login)
 	r.GET("/index", controllers.GetAllPosts)
 	r.GET("/posts/:post_id", controllers.GetPostByID)
 }
