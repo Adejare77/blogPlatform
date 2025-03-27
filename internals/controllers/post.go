@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -43,7 +44,17 @@ func CreatePost(ctx *gin.Context) {
 }
 
 func GetAllPosts(ctx *gin.Context) {
-	posts, err := models.FindAllPosts()
+	var filters schemas.FilterQueryParams
+
+	filters.Page = 1
+	filters.Limit = 20
+
+	if err := ctx.ShouldBindQuery(&filters); err != nil {
+		handlers.Validator(ctx, err)
+		return
+	}
+
+	posts, err := models.FindAllPosts(filters.Page, filters.Limit)
 	if err != nil {
 		handlers.InternalServerError(ctx, err)
 		return
@@ -55,10 +66,26 @@ func GetAllPosts(ctx *gin.Context) {
 		return
 	}
 
+	prev := fmt.Sprintf("/index?page=%d&limit=%d", filters.Page-1, filters.Limit)
+	next := fmt.Sprintf("/index?page=%d&limit=%d", filters.Page+1, filters.Limit)
+
+	if filters.Page == 1 {
+		prev = "null"
+	}
+	if filters.Page == int(config.TotalPosts) {
+		next = "null"
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"data": posts,
 		"meta": gin.H{
+			"page":        filters.Page,
+			"limit":       filters.Limit,
 			"total_posts": config.TotalPosts,
+			"links": gin.H{
+				"next": next,
+				"prev": prev,
+			},
 		},
 	})
 }
@@ -66,6 +93,14 @@ func GetAllPosts(ctx *gin.Context) {
 func GetUserPosts(ctx *gin.Context) {
 	currentUser := ctx.MustGet("currentUser").(uint)
 	var status schemas.StatusQueryParams
+	var filters schemas.FilterQueryParams
+
+	filters.Limit = 20 // Default limit
+	filters.Page = 1   // Default page
+	if err := ctx.ShouldBindQuery(&filters); err != nil {
+		handlers.Validator(ctx, err)
+		return
+	}
 
 	status.Status = "published" // Default if not given
 	if err := ctx.ShouldBindQuery(&status); err != nil {
@@ -73,7 +108,7 @@ func GetUserPosts(ctx *gin.Context) {
 		return
 	}
 
-	posts, err := models.FindUserPosts(currentUser, status.Status)
+	posts, err := models.FindUserPosts(currentUser, status.Status, filters.Page, filters.Limit)
 	if err != nil {
 		handlers.InternalServerError(ctx, err)
 		return
@@ -84,7 +119,16 @@ func GetUserPosts(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, posts)
+	// ctx.JSON(http.StatusOK, posts)
+	ctx.JSON(http.StatusOK, gin.H{
+		"data": posts,
+		"meta": gin.H{
+			"page":             filters.Page,
+			"limit":            filters.Page,
+			"total_user_posts": "",
+			"links":            "",
+		},
+	})
 }
 
 func GetPostByID(ctx *gin.Context) {
@@ -214,6 +258,7 @@ func DeletePost(ctx *gin.Context) {
 
 }
 
+// Internal Use (Do not Delete)
 func getCurrentUser(ctx *gin.Context) (uint, error) {
 	session := sessions.Default(ctx)
 	currentUser := session.Get("currentUser")
