@@ -12,5 +12,5 @@ var PostRoutes = func(r *gin.RouterGroup) {
 	r.POST("/posts", controllers.CreatePost)
 	r.GET("/posts", controllers.GetUserPosts)
 
-	r.GET("/logout", controllers.Logout)
+	r.GET("/user/logout", controllers.Logout)
 }
