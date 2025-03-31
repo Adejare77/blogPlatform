@@ -37,7 +37,7 @@ func CreateLike(ctx *gin.Context) {
 
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			handlers.BadRequest(ctx, "Record not Found", err)
+			handlers.BadRequest(ctx, "record not found", err)
 			return
 		}
 		handlers.InternalServerError(ctx, err)
@@ -57,6 +57,10 @@ func CreateLike(ctx *gin.Context) {
 		LikeableID:   post.PostID,
 		LikeableType: targetType.Type,
 	}); err != nil {
+		if strings.Contains(err.Error(), "duplicate") {
+			handlers.BadRequest(ctx, fmt.Sprintf("you already liked this %s", targetType.Type), err)
+			return
+		}
 		handlers.InternalServerError(ctx, err)
 		return
 	}
