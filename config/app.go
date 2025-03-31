@@ -22,9 +22,5 @@ func Initialize() error {
 		return fmt.Errorf("%v", err)
 	}
 
-	if err := ConnectCache(); err != nil {
-		return fmt.Errorf("failed to load Total Posts")
-	}
-
 	return nil
 }
