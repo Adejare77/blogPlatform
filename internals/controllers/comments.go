@@ -22,7 +22,7 @@ func CreateComment(ctx *gin.Context) {
 	}
 
 	// Bind JSON data (content)
-	if err := ctx.ShouldBindJSON(&content); err != nil {
+	if err := ctx.ShouldBind(&content); err != nil {
 		handlers.Validator(ctx, err)
 		return
 	}
