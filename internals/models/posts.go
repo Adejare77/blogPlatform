@@ -8,6 +8,10 @@ import (
 	"gorm.io/gorm"
 )
 
+func PublishedPosts(db *gorm.DB) *gorm.DB {
+	return db.Where("posts.status = ?", "published")
+}
+
 func CreatePost(post *schemas.Post) error {
 	return config.DB.Create(&post).Error
 }
@@ -17,7 +21,7 @@ func FindAllPosts(page int, limit int) ([]map[string]any, *int64, error) {
 	offset := (page - 1) * limit
 
 	query := config.DB.Model(&schemas.Post{}).
-		Where("posts.status = ?", "published").
+		Scopes(PublishedPosts).
 		Select(`
 		posts.id AS post_id, 
 		users.name AS author_name, 
@@ -41,7 +45,7 @@ func FindAllPosts(page int, limit int) ([]map[string]any, *int64, error) {
 	var totalPosts int64
 
 	if err := config.DB.Model(&schemas.Post{}).
-		Where("posts.status = ?", "published").
+		Scopes(PublishedPosts).
 		Count(&totalPosts).Error; err != nil {
 		return nil, nil, err
 	}
