@@ -9,11 +9,16 @@ type Post struct {
 	AuthorID  uint      `gorm:"not null;index;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Title     string    `binding:"required"`
 	Content   string    `gorm:"type:text" binding:"required"`
-	Status    string    `gorm:"default:'draft'" binding:"omitempty,oneof=draft published"`
+	Status    string    `gorm:"default:'draft';index" binding:"omitempty,oneof=draft published"`
 	Likes     []Like    `gorm:"polymorphic:Likeable;polymorphicValue:Post;constraint:OnDelete:CASCADE"`
 	Comments  []Comment `gorm:"foreignKey:PostID;constraint:OnDelete:CASCADE"`
-	CreatedAt time.Time
+	CreatedAt time.Time `gorm:"index"`
 	UpdatedAt time.Time
+}
+
+type UserPostsStats struct {
+	TotalPosts  int64 `json:"total_user_posts"`
+	TotalDrafts int64 `json:"total_user_drafts"`
 }
 
 type PostURIParams struct {
