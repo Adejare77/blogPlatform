@@ -6,13 +6,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Adejare77/blogPlatform/config"
 	"github.com/Adejare77/blogPlatform/internals/handlers"
 	"github.com/Adejare77/blogPlatform/internals/models"
 	"github.com/Adejare77/blogPlatform/internals/schemas"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 )
 
 func CreatePost(ctx *gin.Context) {
@@ -32,11 +30,6 @@ func CreatePost(ctx *gin.Context) {
 		return
 	}
 
-	if err := config.IncrementTotalPosts(); err != nil {
-		logrus.WithFields(logrus.Fields{
-			"Warning": "Failed to Increase Total blog Posts",
-		})
-	}
 	ctx.JSON(http.StatusCreated, gin.H{
 		"status":  http.StatusCreated,
 		"message": "post created successfully",
@@ -44,50 +37,43 @@ func CreatePost(ctx *gin.Context) {
 }
 
 func GetAllPosts(ctx *gin.Context) {
-	var filters schemas.FilterQueryParams
 
-	filters.Page = 1
-	filters.Limit = 20
+	var filters schemas.FilterQueryParams
+	filters.Page = 1   // default page
+	filters.Limit = 20 // default limit
 
 	if err := ctx.ShouldBindQuery(&filters); err != nil {
 		handlers.Validator(ctx, err)
 		return
 	}
 
-	posts, err := models.FindAllPosts(filters.Page, filters.Limit)
+	posts, totalPosts, err := models.FindAllPosts(filters.Page, filters.Limit)
 	if err != nil {
 		handlers.InternalServerError(ctx, err)
 		return
-	} else if len(posts) == 0 {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"status":  http.StatusNotFound,
-			"message": "no record found",
-		})
+	}
+
+	if len(posts) == 0 {
+		ctx.JSON(http.StatusOK, []string{})
 		return
 	}
 
-	prev := fmt.Sprintf("/index?page=%d&limit=%d", filters.Page-1, filters.Limit)
-	next := fmt.Sprintf("/index?page=%d&limit=%d", filters.Page+1, filters.Limit)
+	next, prev := generateLink(filters, *totalPosts)
 
-	if filters.Page == 1 {
-		prev = "null"
-	}
-	if filters.Page == int(config.TotalPosts) {
-		next = "null"
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{
+	data := gin.H{
 		"data": posts,
 		"meta": gin.H{
 			"page":        filters.Page,
 			"limit":       filters.Limit,
-			"total_posts": config.TotalPosts,
-			"links": gin.H{
+			"total_posts": *totalPosts,
+			"_links": gin.H{
 				"next": next,
 				"prev": prev,
 			},
 		},
-	})
+	}
+
+	ctx.JSON(http.StatusOK, data)
 }
 
 func GetUserPosts(ctx *gin.Context) {
@@ -108,25 +94,35 @@ func GetUserPosts(ctx *gin.Context) {
 		return
 	}
 
-	posts, err := models.FindUserPosts(currentUser, status.Status, filters.Page, filters.Limit)
+	posts, stats, err := models.FindUserPosts(currentUser, status.Status, filters.Page, filters.Limit)
 	if err != nil {
 		handlers.InternalServerError(ctx, err)
 		return
 	}
 
 	if len(posts) == 0 {
-		ctx.JSON(http.StatusOK, []map[string]any{})
+		ctx.JSON(http.StatusOK, []string{})
 		return
 	}
 
-	// ctx.JSON(http.StatusOK, posts)
+	page := stats.TotalPosts
+	if status.Status == "draft" {
+		page = stats.TotalDrafts
+	}
+
+	next, prev := generateLink(filters, page)
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"data": posts,
 		"meta": gin.H{
-			"page":             filters.Page,
-			"limit":            filters.Page,
-			"total_user_posts": "",
-			"links":            "",
+			"page":              filters.Page,
+			"limit":             filters.Limit,
+			"total_user_posts":  stats.TotalPosts,
+			"total_user_drafts": stats.TotalDrafts,
+			"_links": gin.H{
+				"next": next,
+				"prev": prev,
+			},
 		},
 	})
 }
@@ -170,7 +166,15 @@ func GetPostByID(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, result)
+	ctx.JSON(http.StatusOK, gin.H{
+		"data": result,
+		"meta": gin.H{
+			"_links": gin.H{
+				"self":     fmt.Sprintf("/posts/%s", post.PostID),
+				"comments": fmt.Sprintf("/posts/%s/comments", post.PostID),
+			},
+		},
+	})
 }
 
 func UpdatePost(ctx *gin.Context) {
@@ -189,7 +193,7 @@ func UpdatePost(ctx *gin.Context) {
 	}
 
 	var dto PostUpdateDTO
-	if err := ctx.ShouldBindJSON(&dto); err != nil {
+	if err := ctx.ShouldBind(&dto); err != nil {
 		handlers.Validator(ctx, err)
 		return
 	}
@@ -247,10 +251,6 @@ func DeletePost(ctx *gin.Context) {
 		return
 	}
 
-	if err := config.DecrementTotalPosts(); err != nil {
-		logrus.WithField("Warning", "Failed to Decrease Total blog Posts")
-	}
-
 	ctx.JSON(http.StatusOK, gin.H{
 		"status":  http.StatusOK,
 		"message": "successfully deleted",
@@ -269,4 +269,19 @@ func getCurrentUser(ctx *gin.Context) (uint, error) {
 	session.Set("currentUser", currentUser)
 
 	return currentUser.(uint), session.Save()
+}
+
+func generateLink(filters schemas.FilterQueryParams, totalPosts int64) (string, string) {
+	prev := fmt.Sprintf("/index?page=%d&limit=%d", filters.Page-1, filters.Limit)
+	next := fmt.Sprintf("/index?page=%d&limit=%d", filters.Page+1, filters.Limit)
+
+	if filters.Page == 1 {
+		prev = "null"
+	}
+
+	if filters.Page >= int(totalPosts+int64(filters.Limit)-1)/filters.Limit { // last page
+		next = "null"
+	}
+
+	return next, prev
 }
