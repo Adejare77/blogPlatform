@@ -5,7 +5,6 @@ import (
 
 	"github.com/Adejare77/blogPlatform/config"
 	"github.com/Adejare77/blogPlatform/internals/middlesware"
-	"github.com/Adejare77/blogPlatform/internals/models"
 	"github.com/Adejare77/blogPlatform/internals/routes"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -16,13 +15,6 @@ func main() {
 	if err := config.Initialize(); err != nil {
 		log.Fatalf("Failed to Initialize Server: %v", err)
 	}
-
-	totalPosts, err := models.TotalPosts()
-	if err != nil {
-		log.Fatalf("Faild to fetch Total Posts")
-	}
-
-	config.TotalPosts = totalPosts
 
 	app := gin.Default()
 	app.Use(sessions.Sessions("blogPost", config.SessionStore))
