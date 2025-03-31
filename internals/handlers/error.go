@@ -17,13 +17,20 @@ type APIError struct {
 	Details    interface{}
 }
 
+func Warning(msg string, path any) {
+	logrus.WithFields(logrus.Fields{
+		"Warning": msg,
+		"Path":    path,
+	}).Warn(msg)
+}
+
 func handleError(ctx *gin.Context, statusCode int, errorCode string, errorMessage interface{}, errorDetails interface{}) {
 	// For Developers
 	logrus.WithFields(logrus.Fields{
 		"statusCode":   statusCode,
 		"errorCode":    errorCode,
 		"errorDetails": errorDetails,
-	})
+	}).Error(errorDetails)
 
 	// For users/clients
 	ctx.JSON(statusCode, gin.H{
