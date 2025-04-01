@@ -1,6 +1,6 @@
 # Blog Platform API
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/yourusername/blog-platform)](https://goreportcard.com/report/github.com/yourusername/blog-platform)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Adejare77/blogPlatform)](https://goreportcard.com/report/github.com/Adejare77/blogPlatform)
 
 
 A production-ready **Blog Platform API** built with **Go, PostgreSQL, and Redis**. Implements **RESTful best practices** with enterprise-grade **security, scalability, and performance**.
