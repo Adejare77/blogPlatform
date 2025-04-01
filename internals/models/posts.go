@@ -64,8 +64,8 @@ func FindUserPosts(userID uint, status string, page int, limit int) ([]map[strin
 		users.name AS author_name, 
 		posts.title AS post_title, 
 		CONCAT(LEFT(posts.content, 150), '...') AS content_excerpt, 
-		COUNT(likes.likeable_id) AS likes,
-		COUNT(comments.id) AS comments_counts
+		COUNT(DISTINCT likes.likeable_id) AS likes,
+		COUNT(DISTINCT comments.id) AS comments_counts
 		`).
 		Joins("LEFT JOIN likes ON posts.id = likes.likeable_id AND likes.likeable_type = ?", "post").
 		Joins("LEFT JOIN comments ON comments.post_id = posts.id").
@@ -109,8 +109,8 @@ func FindByPostID(userID uint, postID string, status string) (map[string]any, er
 		users.name AS author_name,
 		title AS post_title,
 		posts.content AS content, 
-		COUNT(likes.likeable_id) AS likes,
-		COUNT(comments.id) AS comments_counts
+		COUNT(DISTINCT likes.likeable_id) AS likes,
+		COUNT(DISTINCT comments.id) AS comments_counts
 		`).
 		Joins("LEFT JOIN likes ON likes.likeable_id = posts.id").
 		Joins("LEFT JOIN comments ON comments.post_id = posts.id").
