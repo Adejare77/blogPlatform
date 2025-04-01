@@ -54,7 +54,7 @@ func FindCommentsByPostID(postID string) ([]map[string]any, error) {
 
 func UpdateComment(userID uint, filter schemas.CommentUriParam, data schemas.CommentBody) error {
 	cursor := config.DB.
-		Where("user_id = ? AND id = ?", userID, filter.CommentID).
+		Where("author_id = ? AND id = ?", userID, filter.CommentID).
 		Update("content", data.Content)
 
 	if cursor.Error != nil {
@@ -70,7 +70,7 @@ func UpdateComment(userID uint, filter schemas.CommentUriParam, data schemas.Com
 
 func DeleteComment(userID uint, comment schemas.CommentUriParam) error {
 	cursor := config.DB.
-		Where("user_id = ? AND id = ?", userID, comment.CommentID).
+		Where("author_id = ? AND id = ?", userID, comment.CommentID).
 		Delete(&schemas.Comment{})
 
 	if cursor.Error != nil {
