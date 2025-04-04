@@ -86,5 +86,4 @@ func Logout(ctx *gin.Context) {
 		"status":  http.StatusOK,
 		"message": "logged out",
 	})
-	ctx.Redirect(http.StatusSeeOther, "index")
 }
