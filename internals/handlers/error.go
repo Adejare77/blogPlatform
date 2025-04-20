@@ -14,17 +14,10 @@ type APIError struct {
 	StatusCode int
 	ErrorCode  string
 	Message    string
-	Details    interface{}
+	Details    any
 }
 
-func Warning(msg string, path any) {
-	logrus.WithFields(logrus.Fields{
-		"Warning": msg,
-		"Path":    path,
-	}).Warn(msg)
-}
-
-func handleError(ctx *gin.Context, statusCode int, errorCode string, errorMessage interface{}, errorDetails interface{}) {
+func handleError(ctx *gin.Context, statusCode int, errorCode string, errorMessage any, errorDetails any) {
 	// For Developers
 	logrus.WithFields(logrus.Fields{
 		"statusCode":   statusCode,
@@ -39,7 +32,7 @@ func handleError(ctx *gin.Context, statusCode int, errorCode string, errorMessag
 	})
 }
 
-func BadRequest(ctx *gin.Context, msg interface{}, details interface{}) {
+func BadRequest(ctx *gin.Context, msg any, details any) {
 	handleError(
 		ctx,
 		http.StatusBadRequest,
@@ -49,7 +42,7 @@ func BadRequest(ctx *gin.Context, msg interface{}, details interface{}) {
 	)
 }
 
-func InternalServerError(ctx *gin.Context, details interface{}) {
+func InternalServerError(ctx *gin.Context, details any) {
 	handleError(
 		ctx,
 		http.StatusInternalServerError,
@@ -59,7 +52,7 @@ func InternalServerError(ctx *gin.Context, details interface{}) {
 	)
 }
 
-func Unauthorized(ctx *gin.Context, msg string, details interface{}) {
+func Unauthorized(ctx *gin.Context, msg string, details any) {
 	handleError(
 		ctx,
 		http.StatusUnauthorized,
@@ -103,7 +96,7 @@ func Validator(ctx *gin.Context, err error) {
 	handleError(
 		ctx,
 		http.StatusBadRequest,
-		"Validation Error",
+		"VALIDATION_ERROR",
 		errorDetails,
 		err,
 	)
